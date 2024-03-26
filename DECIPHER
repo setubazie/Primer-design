@@ -1,0 +1,56 @@
+#Primer design using R
+library(DECIPHER)
+? DesignPrimers
+#multiple sequence alignment
+dna_seq <- readDNAStringSet(Mortierella.fasta)
+align-seq <- AlignSeqs(dna_seq) 
+# view the alignment
+BrowseSeqs(DNA_setu, highlight=12) 
+
+#Creating a Sequence Database
+fas <- "~/align-seq.fas"
+
+# specify a path for where to write the sequence database
+#dbConn <- "data_dir"
+Seqs2DB(fas, "FASTA", dbConn, "Mortierella")
+
+# get the FASTA record description
+desc <- dbGetQuery(dbConn, "select description from Seqs")
+# parse the sequence description to obtain the species name
+desc <- unlist(lapply(strsplit(desc$description, "Mortierella ", fixed=TRUE),
+                          function(x) return(x[length(x)])))
+#Mortierella
+desc <- gsub("sp. ", "", desc, perl=TRUE)
+desc <- gsub("sp_", "", desc, perl=TRUE)
+desc <- unlist(lapply(strsplit(desc, " ", fixed=TRUE), function(x) return(x[1])))
+unique(desc)
+
+#add them to the database as the identifier of each
+#sequence
+Add2DB(data.frame(identifier=desc),dbConn)
+
+#Tiling Sequences
+tiles <- TileSeqs(dbConn, add2tbl="Tiles", minCoverage=1)
+
+#check the primers on the browser
+pattern <- DNAStringSet("ATGCACACACGGT")
+BrowseSeqs(align-seq,
+           patterns=pattern, highlight=12)
+
+#Designing All Possible Primers
+primers <- DesignPrimers(tiles, identifier="Mortierella",
+                         minCoverage=1, minGroupCoverage=1)
+primers_2 <- DesignPrimers(tiles,identifier = "Mortierella", start = 1, end = NULL, minLength = 17, maxLength = 26, maxPermutations = 4, 
+minCoverage = 0.9, minGroupCoverage = 0.2, annealingTemp = 64, P = 4e-07, 
+monovalent = 0.07, divalent = 0.003, dNTPs = 8e-04, minEfficiency = 0.8, 
+worstScore = -Inf,numPrimerSets = 0, minProductSize = 75, maxProductSize = 1200, maxSearchSize = 1500, 
+batchSize = 1000, maxDistance = 0.4, primerDimer = 1e-07, ragged5Prime = TRUE, 
+taqEfficiency = TRUE, induceMismatch = FALSE, processors = 1, verbose = TRUE)
+
+#The overall amplification efficiency
+sqrt(mean(primers[1, "forward_efficiency"], na.rm=TRUE)* mean(primers[1, "reverse_efficiency"], na.rm=TRUE))*100
+
+#Designing the Best Possible Primer Set
+primers_Best <- DesignPrimers(tiles, identifier="Mortierella", minCoverage=1,
+                         minGroupCoverage=1, numPrimerSets=5, maxSearchSize=20)
+head(primers_Best)
